@@ -1,0 +1,506 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>聊天室登录</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .login-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      width: 400px;
+      max-width: 90%;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .login-header h1 {
+      color: #333;
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .login-header p {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group.error input {
+      border-color: #ff4757;
+    }
+
+    .error-message {
+      color: #ff4757;
+      font-size: 12px;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .form-group.error .error-message {
+      display: block;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #5a6fd8;
+    }
+
+    .btn-secondary {
+      background: #f8f9fa;
+      color: #667eea;
+      border: 1px solid #667eea;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #e9ecef;
+    }
+
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .switch-form {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .switch-form a {
+      color: #667eea;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .switch-form a:hover {
+      text-decoration: underline;
+    }
+
+    .verification-section {
+      display: none;
+    }
+
+    .countdown {
+      color: #666;
+      font-size: 14px;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .resend-link {
+      color: #667eea;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .resend-link.disabled {
+      color: #ccc;
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 30px 20px;
+      }
+    }
+  </style>
+</head>
+<!--
+  环境变量配置说明：
+  请在项目根目录创建 .env 文件，并添加以下内容：
+  EMAIL_PASS=your_qq_email_password
+  SECRET_KEY=your_secret_key_for_flask
+  
+  注意：
+  1. QQ邮箱需要开启SMTP服务并使用授权码作为密码
+  2. SECRET_KEY应使用强随机字符串
+  3. 不要将.env文件提交到版本控制系统
+-->
+<body>
+  <div class="login-container">
+    <div class="login-header">
+      <h1>聊天室</h1>
+      <p>欢迎使用邮箱验证码登录</p>
+    </div>
+
+    <!-- 登录表单 -->
+    <form id="loginForm" class="form-content">
+      <div class="form-group">
+        <label>邮箱地址</label>
+        <input type="email" id="loginEmail" placeholder="请输入邮箱地址" required>
+        <div class="error-message" id="loginEmailError"></div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="loginSendCodeBtn">
+        发送验证码
+      </button>
+    </form>
+
+    <!-- 验证码验证表单 -->
+    <form id="verifyForm" class="form-content verification-section">
+      <div class="form-group">
+        <label>验证码</label>
+        <input type="text" id="verifyCode" placeholder="请输入6位验证码" maxlength="6" required>
+        <div class="error-message" id="verifyCodeError"></div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="verifyBtn">
+        登录
+      </button>
+      
+      <div class="countdown">
+        <span id="countdownText">60秒后</span> 
+        <span class="resend-link" id="resendLink">重新发送</span>
+      </div>
+    </form>
+
+    <!-- 注册表单 -->
+    <form id="registerForm" class="form-content verification-section">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="registerUsername" placeholder="请输入用户名" maxlength="32" required>
+        <div class="error-message" id="registerUsernameError"></div>
+      </div>
+      
+      <div class="form-group">
+        <label>邮箱地址</label>
+        <input type="email" id="registerEmail" placeholder="请输入邮箱地址" required>
+        <div class="error-message" id="registerEmailError"></div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="registerSendCodeBtn">
+        发送验证码
+      </button>
+    </form>
+
+    <!-- 注册验证码验证表单 -->
+    <form id="registerVerifyForm" class="form-content verification-section">
+      <div class="form-group">
+        <label>验证码</label>
+        <input type="text" id="registerVerifyCode" placeholder="请输入6位验证码" maxlength="6" required>
+        <div class="error-message" id="registerVerifyCodeError"></div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="registerVerifyBtn">
+        注册
+      </button>
+      
+      <div class="countdown">
+        <span id="registerCountdownText">60秒后</span> 
+        <span class="resend-link" id="registerResendLink">重新发送</span>
+      </div>
+    </form>
+
+    <div class="switch-form">
+      <span id="formSwitchText">
+        还没有账号？ <a onclick="switchForm('register')">立即注册</a>
+      </span>
+    </div>
+  </div>
+
+  <script>
+    let currentForm = 'login';
+    let countdownInterval;
+    
+    // 表单切换
+    function switchForm(formType) {
+      currentForm = formType;
+      
+      // 重置所有表单
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('verifyForm').style.display = 'none';
+      document.getElementById('registerForm').style.display = 'none';
+      document.getElementById('registerVerifyForm').style.display = 'none';
+      
+      // 显示对应表单
+      if (formType === 'login') {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('formSwitchText').innerHTML = 
+          '还没有账号？ <a onclick="switchForm(\'register\')">立即注册</a>';
+      } else if (formType === 'register') {
+        document.getElementById('registerForm').style.display = 'block';
+        document.getElementById('formSwitchText').innerHTML = 
+          '已有账号？ <a onclick="switchForm(\'login\')">立即登录</a>';
+      }
+      
+      // 清除错误信息
+      clearErrors();
+    }
+    
+    // 清除错误信息
+    function clearErrors() {
+      document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.form-group').forEach(el => el.classList.remove('error'));
+    }
+    
+    // 显示错误信息
+    function showError(elementId, message) {
+      const element = document.getElementById(elementId);
+      const group = element.parentElement;
+      group.classList.add('error');
+      element.textContent = message;
+      element.style.display = 'block';
+    }
+    
+    // 倒计时功能
+    function startCountdown(elementId, resendId, callback) {
+      let seconds = 60;
+      const countdownText = document.getElementById(elementId);
+      const resendLink = document.getElementById(resendId);
+      
+      resendLink.classList.add('disabled');
+      
+      countdownInterval = setInterval(() => {
+        seconds--;
+        countdownText.textContent = `${seconds}秒后`;
+        
+        if (seconds <= 0) {
+          clearInterval(countdownInterval);
+          countdownText.textContent = '';
+          resendLink.classList.remove('disabled');
+        }
+      }, 1000);
+    }
+    
+    // 发送验证码
+    async function sendVerificationCode(email, type, username = '') {
+      try {
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, email })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert('验证码已发送到您的邮箱');
+          return true;
+        } else {
+          alert(result.message);
+          return false;
+        }
+      } catch (error) {
+        console.error('发送验证码失败:', error);
+        alert('发送验证码失败，请稍后重试');
+        return false;
+      }
+    }
+    
+    // 登录发送验证码
+    async function sendLoginCode(email) {
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert('验证码已发送到您的邮箱');
+          return true;
+        } else {
+          alert(result.message);
+          return false;
+        }
+      } catch (error) {
+        console.error('发送验证码失败:', error);
+        alert('发送验证码失败，请稍后重试');
+        return false;
+      }
+    }
+    
+    // 验证验证码
+    async function verifyCode(email, code, type, username = '') {
+      try {
+        const endpoint = type === 'register' ? '/api/verify_code' : '/api/login_verify';
+        const body = type === 'register' 
+          ? { email, code, username } 
+          : { email, code };
+          
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // 登录成功，跳转到聊天室
+          localStorage.setItem('chatUser', JSON.stringify(result.user));
+          window.location.href = '/';
+        } else {
+          alert(result.message);
+        }
+      } catch (error) {
+        console.error('验证失败:', error);
+        alert('验证失败，请稍后重试');
+      }
+    }
+    
+    // 登录表单提交
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      
+      if (!email) {
+        showError('loginEmailError', '请输入邮箱地址');
+        return;
+      }
+      
+      if (await sendLoginCode(email)) {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('verifyForm').style.display = 'block';
+        startCountdown('countdownText', 'resendLink', () => sendLoginCode(email));
+      }
+    });
+    
+    // 登录验证码验证
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const code = document.getElementById('verifyCode').value.trim();
+      
+      if (!code) {
+        showError('verifyCodeError', '请输入验证码');
+        return;
+      }
+      
+      await verifyCode(email, code, 'login');
+    });
+    
+    // 注册表单提交
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('registerUsername').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      
+      if (!username) {
+        showError('registerUsernameError', '请输入用户名');
+        return;
+      }
+      
+      if (!email) {
+        showError('registerEmailError', '请输入邮箱地址');
+        return;
+      }
+      
+      if (await sendVerificationCode(email, 'register', username)) {
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('registerVerifyForm').style.display = 'block';
+        startCountdown('registerCountdownText', 'registerResendLink', 
+          () => sendVerificationCode(email, 'register', username));
+      }
+    });
+    
+    // 注册验证码验证
+    document.getElementById('registerVerifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('registerUsername').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      const code = document.getElementById('registerVerifyCode').value.trim();
+      
+      if (!code) {
+        showError('registerVerifyCodeError', '请输入验证码');
+        return;
+      }
+      
+      await verifyCode(email, code, 'register', username);
+    });
+    
+    // 重新发送验证码
+    document.getElementById('resendLink').addEventListener('click', async () => {
+      if (!document.getElementById('resendLink').classList.contains('disabled')) {
+        const email = document.getElementById('loginEmail').value.trim();
+        await sendLoginCode(email);
+        startCountdown('countdownText', 'resendLink', () => sendLoginCode(email));
+      }
+    });
+    
+    document.getElementById('registerResendLink').addEventListener('click', async () => {
+      if (!document.getElementById('registerResendLink').classList.contains('disabled')) {
+        const username = document.getElementById('registerUsername').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
+        await sendVerificationCode(email, 'register', username);
+        startCountdown('registerCountdownText', 'registerResendLink', 
+          () => sendVerificationCode(email, 'register', username));
+      }
+    });
+    
+    // 页面加载时检查是否已登录
+    window.onload = function() {
+      const savedUser = localStorage.getItem('chatUser');
+      if (savedUser) {
+        window.location.href = '/';
+      }
+    };
+  </script>
+</body>
+</html>
