@@ -19,7 +19,7 @@
 
 1. 克隆项目代码：
    ```
-   git clone <项目地址>
+   git clone <https://github.com/lvshenfx/liaotian.git>
    cd chat
    ```
 
